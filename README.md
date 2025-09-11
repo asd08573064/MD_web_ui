@@ -116,18 +116,6 @@ The system uses a whitelist of pre-authorized doctor IDs. To view the current li
 python show_doctor_ids.py
 ```
 
-**Current Authorized IDs:**
-1. DR001_ALPHA
-2. DR002_BRAVO
-3. DR003_CHARLIE
-4. DR004_DELTA
-5. DR005_ECHO
-6. DR006_FOXTROT
-7. DR007_GOLF
-8. DR008_HOTEL
-9. DR009_INDIA
-10. DR010_JULIET
-
 **Important:** Only these IDs can access the labeling system. Contact the administrator if you need access.
 
 ## Data Structure
