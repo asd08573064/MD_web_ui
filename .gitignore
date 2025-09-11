@@ -1,0 +1,382 @@
+# Medical Deepfake Labeling Application - .gitignore
+
+# ===========================================
+# Python
+# ===========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# ===========================================
+# Application Specific
+# ===========================================
+
+# Doctor labels (contains sensitive data)
+doctor_labels/
+*.json
+
+# Application logs
+logs/
+*.log
+
+# Data directories (contain sensitive medical data)
+out_scm_tts/
+out_scm_tts_ehr/
+
+# Generated whitelist files (may contain sensitive data)
+doctor_whitelist.json
+*_whitelist.json
+custom_whitelist.json
+
+# Backup files
+backup_*.tar.gz
+*.backup
+*.bak
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# ===========================================
+# Docker
+# ===========================================
+.dockerignore
+
+# ===========================================
+# IDE and Editor Files
+# ===========================================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ===========================================
+# Operating System Files
+# ===========================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.tmp
+*.temp
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ===========================================
+# Security and Credentials
+# ===========================================
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# SSH keys
+*.pem
+*.key
+id_rsa*
+id_dsa*
+id_ed25519*
+id_ecdsa*
+
+# Certificates
+*.crt
+*.cer
+*.p12
+*.pfx
+
+# ===========================================
+# Cloud and Deployment
+# ===========================================
+
+# AWS
+.aws/
+aws-credentials.json
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# ===========================================
+# Development and Testing
+# ===========================================
+
+# Test data
+test_data/
+sample_data/
+mock_data/
+
+# Development databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Performance profiling
+*.prof
+*.profile
+
+# ===========================================
+# Documentation Build
+# ===========================================
+
+# Sphinx
+docs/_build/
+docs/build/
+
+# MkDocs
+site/
+
+# ===========================================
+# Package Managers
+# ===========================================
+
+# Node.js (if using any JS tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# ===========================================
+# Miscellaneous
+# ===========================================
+
+# Archives
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Large files
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.webm
+
+# Compiled binaries
+*.exe
+*.out
+*.app
+
+# ===========================================
+# Project Specific Exceptions
+# ===========================================
+
+# Keep these files in version control
+!requirements.txt
+!README.md
+!Dockerfile
+!docker-compose.yml
+!docker-compose.prod.yml
+!app.py
+!show_doctor_ids.py
+!generate_doctor_whitelist.py
+!aws-setup.sh
+!aws-deploy.sh
+!deploy.sh
+!docker-run.sh
+!WHITELIST_GENERATOR_README.md
+
+# Keep sample files for documentation
+!sample_doctors.txt
+!sample_doctors.csv
