@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  medical-labeling-app:
+    build: .
+    ports:
+      - "8501:8501"
+    volumes:
+      # Mount data directories (read-only for security)
+      - ./out_scm_tts:/app/out_scm_tts:ro
+      - ./out_scm_tts_ehr:/app/out_scm_tts_ehr:ro
+      # Mount labels directory for persistence
+      - ./doctor_labels:/app/doctor_labels
+      # Mount logs directory
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_SERVER_ENABLE_CORS=false
+      - STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
