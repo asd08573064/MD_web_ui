@@ -177,7 +177,7 @@ def display_image_and_ehr(image_data, ehr_text):
         
         if image_path:
             image = Image.open(image_path)
-            st.image(image, use_container_width=True, caption=image_data['filename'])
+            st.image(image, use_container_width=True)
         else:
             st.error(f"Image not found: {image_data['filename']}")
     
@@ -269,7 +269,7 @@ def main():
     current_image = unlabeled_images[0]
     ehr_text = load_ehr_text(current_image['filename'])
     
-    st.markdown(f"### Current Image: {current_image['filename']}")
+    st.markdown("### Current Image")
     
     # Display image and EHR
     display_image_and_ehr(current_image, ehr_text)
@@ -278,31 +278,22 @@ def main():
     st.markdown("### 🎯 Difficulty Rating")
     st.markdown("**How difficult is it to detect that this image is a deepfake?**")
     
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3 = st.columns(3)
+    
     
     with col1:
-        if st.button("🟢 Very Easy", use_container_width=True):
-            save_label(doctor_id, current_image['filename'], "very_easy", current_image, ehr_text)
-            st.rerun()
-    
-    with col2:
-        if st.button("🟡 Easy", use_container_width=True):
+        if st.button("🟢 Easy", use_container_width=True): 
             save_label(doctor_id, current_image['filename'], "easy", current_image, ehr_text)
             st.rerun()
     
-    with col3:
-        if st.button("🟠 Medium", use_container_width=True):
+    with col2:
+        if st.button("🟡 Medium", use_container_width=True):
             save_label(doctor_id, current_image['filename'], "medium", current_image, ehr_text)
             st.rerun()
     
-    with col4:
+    with col3:
         if st.button("🔴 Hard", use_container_width=True):
             save_label(doctor_id, current_image['filename'], "hard", current_image, ehr_text)
-            st.rerun()
-    
-    with col5:
-        if st.button("⚫ Very Hard", use_container_width=True):
-            save_label(doctor_id, current_image['filename'], "very_hard", current_image, ehr_text)
             st.rerun()
     
     # Additional options
