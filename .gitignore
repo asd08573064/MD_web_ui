@@ -380,3 +380,5 @@ yarn.lock
 # Keep sample files for documentation
 !sample_doctors.txt
 !sample_doctors.csv
+
+data

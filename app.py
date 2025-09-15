@@ -58,68 +58,78 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Data paths
-IMAGES_PATH = "out_scm_tts"
-EHR_PATH = "out_scm_tts_ehr"
+# Data paths and modalities
+DATA_ROOT = "data"
+MODALITIES = ['CXR', 'MRI', 'CT']
+DIFFICULTIES = ['easy', 'medium', 'hard']
 LABELS_PATH = "doctor_labels"
 
 # Create labels directory if it doesn't exist
 os.makedirs(LABELS_PATH, exist_ok=True)
 
-def load_image_data():
-    """Load all image data from the CSV files"""
+def ensure_data_directories_exist():
+    """Create required data directory structure if it doesn't exist."""
+    for modality in MODALITIES:
+        images_root = os.path.join(DATA_ROOT, modality, 'images')
+        reports_root = os.path.join(DATA_ROOT, modality, 'reports')
+        for root in (images_root, reports_root):
+            os.makedirs(root, exist_ok=True)
+            for difficulty in DIFFICULTIES:
+                os.makedirs(os.path.join(root, difficulty), exist_ok=True)
+
+def list_image_files(images_dir):
+    """List image files in a directory with common extensions."""
+    exts = ('*.png', '*.jpg', '*.jpeg', '*.bmp')
+    files = []
+    for ext in exts:
+        files.extend(glob.glob(os.path.join(images_dir, ext)))
+    # Return just basenames, sorted for stability
+    return sorted([os.path.basename(p) for p in files])
+
+def load_image_data(modality):
+    """Load image data by scanning data/<modality>/images/<difficulty> directories."""
     image_data = []
-    
-    for difficulty in ['easy', 'medium', 'hard']:
-        csv_path = os.path.join(IMAGES_PATH, difficulty, f"results_{difficulty}.csv")
-        if os.path.exists(csv_path):
-            df = pd.read_csv(csv_path)
-            for _, row in df.iterrows():
-                image_data.append({
-                    'filename': row['file'],
-                    'difficulty': difficulty,
-                    'seed': row['seed'],
-                    'prompt': row['prompt'],
-                    'scm_realism': row['scm_realism'],
-                    'scm_artifact': row['scm_artifact'],
-                    'scm_symmetry': row['scm_symmetry'],
-                    'scm_noise_cv': row['scm_noise_cv'],
-                    'scm_vessel_decay': row['scm_vessel_decay'],
-                    'accepted': row['accepted'],
-                    'objective': row['objective']
-                })
-    
+    for difficulty in DIFFICULTIES:
+        images_dir = os.path.join(DATA_ROOT, modality, 'images', difficulty)
+        filenames = list_image_files(images_dir)
+        for filename in filenames:
+            image_data.append({
+                'filename': filename,
+                'modality': modality,
+                'difficulty': difficulty
+            })
     return image_data
 
-def load_ehr_text(filename):
-    """Load EHR text for a given image filename"""
-    # Convert image filename to EHR filename
-    ehr_filename = filename.replace('.png', '.ehr.txt')
-    
-    # Try to find the EHR file in any difficulty folder
-    for difficulty in ['easy', 'medium', 'hard']:
-        ehr_path = os.path.join(EHR_PATH, difficulty, ehr_filename)
+def load_ehr_text(filename, modality, difficulty):
+    """Load report text for a given image filename in a modality and difficulty."""
+    base, _ = os.path.splitext(filename)
+    # Support both .txt and .ehr.txt just in case
+    candidate_names = [f"{base}.txt", f"{base}.ehr.txt", f"{base}.report.txt"]
+    reports_dir = os.path.join(DATA_ROOT, modality, 'reports', difficulty)
+    for name in candidate_names:
+        ehr_path = os.path.join(reports_dir, name)
         if os.path.exists(ehr_path):
             with open(ehr_path, 'r') as f:
                 return f.read().strip()
-    
-    return "EHR text not found"
+    return "Report not found"
 
-def get_doctor_file_path(doctor_id):
-    """Get the file path for a doctor's labels"""
-    return os.path.join(LABELS_PATH, f"doctor_{doctor_id}.json")
+def get_doctor_file_path(doctor_id, modality):
+    """Get the file path for a doctor's labels for a specific modality"""
+    modality_dir = os.path.join(LABELS_PATH, modality)
+    os.makedirs(modality_dir, exist_ok=True)
+    return os.path.join(modality_dir, f"doctor_{doctor_id}.json")
 
-def load_doctor_labels(doctor_id):
-    """Load existing labels for a doctor"""
-    file_path = get_doctor_file_path(doctor_id)
+def load_doctor_labels(doctor_id, modality):
+    """Load existing labels for a doctor and modality"""
+    file_path = get_doctor_file_path(doctor_id, modality)
     if os.path.exists(file_path):
         with open(file_path, 'r') as f:
             return json.load(f)
     return {}
 
-def save_doctor_labels(doctor_id, labels):
-    """Save labels for a doctor"""
-    file_path = get_doctor_file_path(doctor_id)
+def save_doctor_labels(doctor_id, modality, labels):
+    """Save labels for a doctor and modality"""
+    file_path = get_doctor_file_path(doctor_id, modality)
     with open(file_path, 'w') as f:
         json.dump(labels, f, indent=2)
 
@@ -166,16 +176,9 @@ def display_image_and_ehr(image_data, ehr_text):
     
     with col1:
         st.markdown("### 📸 Medical Image")
-        image_path = None
+        image_path = os.path.join(DATA_ROOT, image_data['modality'], 'images', image_data.get('difficulty', ''), image_data['filename'])
         
-        # Find the image file
-        for difficulty in ['easy', 'medium', 'hard']:
-            potential_path = os.path.join(IMAGES_PATH, difficulty, image_data['filename'])
-            if os.path.exists(potential_path):
-                image_path = potential_path
-                break
-        
-        if image_path:
+        if os.path.exists(image_path):
             image = Image.open(image_path)
             st.image(image, use_container_width=True)
         else:
@@ -224,32 +227,45 @@ def main():
         """)
         return
     
-    # Load data
-    image_data_list = load_image_data()
-    doctor_labels = load_doctor_labels(doctor_id)
+    # Ensure data directories exist
+    ensure_data_directories_exist()
+
+    # Modality selection
+    modality = st.sidebar.selectbox("Select Modality", MODALITIES, index=0)
+
+    # Load data for selected modality
+    image_data_list = load_image_data(modality)
+    doctor_labels = load_doctor_labels(doctor_id, modality)
     
     # Doctor info sidebar
+    # Labels are already scoped per modality file
+    doctor_labels_current = doctor_labels
+
     st.sidebar.markdown(f"""
     <div class="doctor-info">
         <h4>👨‍⚕️ Doctor Information</h4>
         <p><strong>ID:</strong> {doctor_hash}</p>
-        <p><strong>Images Labeled:</strong> {len(doctor_labels)}</p>
-        <p><strong>Total Images:</strong> {len(image_data_list)}</p>
+        <p><strong>Modality:</strong> {modality}</p>
+        <p><strong>Images Labeled (this modality):</strong> {len(doctor_labels_current)}</p>
+        <p><strong>Total Images (this modality):</strong> {len(image_data_list)}</p>
     </div>
     """, unsafe_allow_html=True)
     
     # Progress tracking
-    progress = len(doctor_labels) / len(image_data_list) if image_data_list else 0
+    progress = len(doctor_labels_current) / len(image_data_list) if image_data_list else 0
     st.sidebar.markdown("### 📈 Progress")
     st.sidebar.progress(progress)
-    st.sidebar.write(f"{len(doctor_labels)} / {len(image_data_list)} images labeled ({progress:.1%})")
+    st.sidebar.write(f"{len(doctor_labels_current)} / {len(image_data_list)} images labeled ({progress:.1%})")
     
     # Find next unlabeled image
-    unlabeled_images = [img for img in image_data_list if img['filename'] not in doctor_labels]
+    def make_label_key(difficulty, filename):
+        return f"{difficulty}/{filename}"
+
+    unlabeled_images = [img for img in image_data_list if make_label_key(img['difficulty'], img['filename']) not in doctor_labels]
     
     if not unlabeled_images:
-        st.success("🎉 Congratulations! You have labeled all images.")
-        st.markdown("### 📊 Your Labeling Summary")
+        st.success(f"🎉 Congratulations! You have labeled all images for {modality}.")
+        st.markdown(f"### 📊 Your Labeling Summary — {modality}")
         
         # Show summary statistics
         if doctor_labels:
@@ -267,7 +283,7 @@ def main():
     
     # Display current image
     current_image = unlabeled_images[0]
-    ehr_text = load_ehr_text(current_image['filename'])
+    ehr_text = load_ehr_text(current_image['filename'], modality, current_image['difficulty'])
     
     st.markdown("### Current Image")
     
@@ -283,17 +299,17 @@ def main():
     
     with col1:
         if st.button("🟢 Easy", use_container_width=True): 
-            save_label(doctor_id, current_image['filename'], "easy", current_image, ehr_text)
+            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "easy", current_image, ehr_text)
             st.rerun()
     
     with col2:
         if st.button("🟡 Medium", use_container_width=True):
-            save_label(doctor_id, current_image['filename'], "medium", current_image, ehr_text)
+            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "medium", current_image, ehr_text)
             st.rerun()
     
     with col3:
         if st.button("🔴 Hard", use_container_width=True):
-            save_label(doctor_id, current_image['filename'], "hard", current_image, ehr_text)
+            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "hard", current_image, ehr_text)
             st.rerun()
     
     # Additional options
@@ -303,36 +319,28 @@ def main():
     
     with col1:
         if st.button("⏭️ Skip This Image", use_container_width=True):
-            save_label(doctor_id, current_image['filename'], "skipped", current_image, ehr_text)
+            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "skipped", current_image, ehr_text)
             st.rerun()
     
     with col2:
         if st.button("🔄 View Previous Labels", use_container_width=True):
             show_previous_labels(doctor_labels)
 
-def save_label(doctor_id, filename, difficulty, image_data, ehr_text):
+def save_label(doctor_id, modality, label_key, difficulty, image_data, ehr_text):
     """Save a label for the current image"""
-    doctor_labels = load_doctor_labels(doctor_id)
+    doctor_labels = load_doctor_labels(doctor_id, modality)
     
     label_data = {
         'doctor_difficulty': difficulty,
         'timestamp': datetime.datetime.now().isoformat(),
-        'original_difficulty': image_data['difficulty'],
-        'seed': image_data['seed'],
-        'ehr_text': ehr_text,
-        'metadata': {
-            'scm_realism': image_data['scm_realism'],
-            'scm_artifact': image_data['scm_artifact'],
-            'scm_symmetry': image_data['scm_symmetry'],
-            'scm_noise_cv': image_data['scm_noise_cv'],
-            'scm_vessel_decay': image_data['scm_vessel_decay'],
-            'accepted': image_data['accepted'],
-            'objective': image_data['objective']
-        }
+        'modality': image_data.get('modality'),
+        'difficulty': image_data.get('difficulty'),
+        'filename': image_data.get('filename'),
+        'ehr_text': ehr_text
     }
     
-    doctor_labels[filename] = label_data
-    save_doctor_labels(doctor_id, doctor_labels)
+    doctor_labels[label_key] = label_data
+    save_doctor_labels(doctor_id, modality, doctor_labels)
     
     st.success(f"✅ Label saved: {difficulty.replace('_', ' ').title()}")
 
@@ -344,18 +352,18 @@ def show_previous_labels(doctor_labels):
     
     st.markdown("### 📋 Previous Labels")
     
-    for filename, label_data in list(doctor_labels.items())[-10:]:  # Show last 10
-        with st.expander(f"{filename} - {label_data['doctor_difficulty'].replace('_', ' ').title()}"):
+    for label_key, label_data in list(doctor_labels.items())[-10:]:  # Show last 10
+        with st.expander(f"{label_key} - {label_data['doctor_difficulty'].replace('_', ' ').title()}"):
             col1, col2 = st.columns(2)
             
             with col1:
                 st.write(f"**Doctor Rating:** {label_data['doctor_difficulty'].replace('_', ' ').title()}")
-                st.write(f"**Original Difficulty:** {label_data['original_difficulty']}")
                 st.write(f"**Timestamp:** {label_data['timestamp']}")
             
             with col2:
-                st.write(f"**Seed:** {label_data['seed']}")
-                st.write(f"**File:** {filename}")
+                st.write(f"**Modality:** {label_data.get('modality', 'N/A')}")
+                st.write(f"**Difficulty:** {label_data.get('difficulty', 'N/A')}")
+                st.write(f"**File:** {label_data.get('filename', 'N/A')}")
 
 if __name__ == "__main__":
     main()
