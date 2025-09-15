@@ -19,29 +19,35 @@ fi
 
 # Create necessary directories
 echo "📁 Creating necessary directories..."
-mkdir -p doctor_labels
+mkdir -p doctor_labels/CXR doctor_labels/MRI doctor_labels/CT
 mkdir -p logs
 
 # Set permissions
 echo "🔐 Setting permissions..."
 chmod 755 app.py
 chmod 755 deploy.sh
-chmod 777 doctor_labels
+chmod -R 777 doctor_labels
 
 # Install dependencies (if not in virtual environment)
 echo "📦 Installing dependencies..."
 pip install -r requirements.txt
 
-# Check if data directories exist
-if [ ! -d "out_scm_tts" ]; then
-    echo "⚠️  Warning: out_scm_tts directory not found!"
-    echo "   Please ensure your image data is in the correct location."
+# Check if data directories exist; create skeleton if missing
+DATA_ROOT="data"
+if [ ! -d "$DATA_ROOT" ]; then
+    echo "⚠️  Warning: data directory not found. Creating skeleton structure..."
+    mkdir -p "$DATA_ROOT"
 fi
 
-if [ ! -d "out_scm_tts_ehr" ]; then
-    echo "⚠️  Warning: out_scm_tts_ehr directory not found!"
-    echo "   Please ensure your EHR data is in the correct location."
-fi
+for MOD in CXR MRI CT; do
+    for ROOT in images reports; do
+        for DIFF in easy medium hard; do
+            mkdir -p "$DATA_ROOT/$MOD/$ROOT/$DIFF"
+        done
+    done
+done
+
+echo "📂 Ensured data structure exists at data/<modality>/{images,reports}/{easy,medium,hard}"
 
 echo "✅ Deployment preparation complete!"
 echo ""
