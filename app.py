@@ -61,7 +61,7 @@ st.markdown("""
 # Data paths and modalities
 DATA_ROOT = "data"
 MODALITIES = ['CXR', 'MRI', 'CT']
-DIFFICULTIES = ['easy', 'medium', 'hard']
+DIFFICULTIES = ['easy', 'medium', 'hard', 'pathology']
 LABELS_PATH = "doctor_labels"
 
 # Create labels directory if it doesn't exist
