@@ -60,8 +60,8 @@ st.markdown("""
 
 # Data paths and modalities
 DATA_ROOT = "data"
-MODALITIES = ['CXR', 'MRI', 'CT']
-DIFFICULTIES = ['easy', 'medium', 'hard', 'pathology']
+MODALITIES = ['CXR', 'MRI', 'CT', 'pathology']
+DIFFICULTIES = ['easy', 'medium', 'hard']
 LABELS_PATH = "doctor_labels"
 
 # Create labels directory if it doesn't exist
@@ -279,6 +279,9 @@ def main():
                 with [col1, col2, col3][i % 3]:
                     st.metric(f"{difficulty.title()} Difficulty", count)
         
+        # Always show previous labels management when all images are labeled
+        st.markdown("---")
+        show_previous_labels(doctor_labels, doctor_id, modality)
         return
     
     # Display current image
@@ -324,7 +327,7 @@ def main():
     
     with col2:
         if st.button("🔄 View Previous Labels", use_container_width=True):
-            show_previous_labels(doctor_labels)
+            show_previous_labels(doctor_labels, doctor_id, modality)
 
 def save_label(doctor_id, modality, label_key, difficulty, image_data, ehr_text):
     """Save a label for the current image"""
@@ -344,26 +347,81 @@ def save_label(doctor_id, modality, label_key, difficulty, image_data, ehr_text)
     
     st.success(f"✅ Label saved: {difficulty.replace('_', ' ').title()}")
 
-def show_previous_labels(doctor_labels):
-    """Show previous labels in an expandable section"""
+def delete_label(doctor_id, modality, label_key):
+    """Delete a label for a specific image"""
+    doctor_labels = load_doctor_labels(doctor_id, modality)
+    if label_key in doctor_labels:
+        del doctor_labels[label_key]
+        save_doctor_labels(doctor_id, modality, doctor_labels)
+        st.success(f"✅ Label deleted for {label_key}")
+        return True
+    return False
+
+def show_previous_labels(doctor_labels, doctor_id, modality):
+    """Show previous labels in an expandable section with embedded editing UI"""
     if not doctor_labels:
         st.info("No previous labels found.")
         return
     
     st.markdown("### 📋 Previous Labels")
+    st.markdown(f"**Modality:** {modality} | **Total Labels:** {len(doctor_labels)}")
     
-    for label_key, label_data in list(doctor_labels.items())[-10:]:  # Show last 10
+    for label_key, label_data in list(doctor_labels.items())[-20:]:  # Show last 20
         with st.expander(f"{label_key} - {label_data['doctor_difficulty'].replace('_', ' ').title()}"):
-            col1, col2 = st.columns(2)
+            # Show label information
+            st.write(f"**Current Rating:** {label_data['doctor_difficulty'].replace('_', ' ').title()}")
+            st.write(f"**Timestamp:** {label_data['timestamp']}")
+            st.write(f"**Difficulty:** {label_data.get('difficulty', 'N/A')}")
+            st.write(f"**File:** {label_data.get('filename', 'N/A')}")
+            
+            # Reconstruct image data for display
+            difficulty, filename = label_key.split('/', 1)
+            image_data = {
+                'filename': filename,
+                'modality': modality,
+                'difficulty': difficulty
+            }
+            
+            # Load the report text
+            ehr_text = load_ehr_text(filename, modality, difficulty)
+            
+            # Display image and report
+            display_image_and_ehr(image_data, ehr_text)
+            
+            # Embedded editing UI
+            st.markdown("### 🎯 Change Rating")
+            st.markdown("**How difficult is it to detect that this image is a deepfake?**")
+            
+            col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                st.write(f"**Doctor Rating:** {label_data['doctor_difficulty'].replace('_', ' ').title()}")
-                st.write(f"**Timestamp:** {label_data['timestamp']}")
+                if st.button("🟢 Easy", key=f"edit_easy_{label_key}"):
+                    update_label_rating(doctor_id, modality, label_key, "easy")
+                    st.rerun()
             
             with col2:
-                st.write(f"**Modality:** {label_data.get('modality', 'N/A')}")
-                st.write(f"**Difficulty:** {label_data.get('difficulty', 'N/A')}")
-                st.write(f"**File:** {label_data.get('filename', 'N/A')}")
+                if st.button("🟡 Medium", key=f"edit_medium_{label_key}"):
+                    update_label_rating(doctor_id, modality, label_key, "medium")
+                    st.rerun()
+            
+            with col3:
+                if st.button("🔴 Hard", key=f"edit_hard_{label_key}"):
+                    update_label_rating(doctor_id, modality, label_key, "hard")
+                    st.rerun()
+            
+            with col4:
+                if st.button("⏭️ Skip", key=f"edit_skip_{label_key}"):
+                    update_label_rating(doctor_id, modality, label_key, "skipped")
+                    st.rerun()
+
+def update_label_rating(doctor_id, modality, label_key, new_rating):
+    """Update the rating for an existing label"""
+    doctor_labels = load_doctor_labels(doctor_id, modality)
+    if label_key in doctor_labels:
+        doctor_labels[label_key]['doctor_difficulty'] = new_rating
+        doctor_labels[label_key]['timestamp'] = datetime.datetime.now().isoformat()
+        save_doctor_labels(doctor_id, modality, doctor_labels)
+        st.success(f"✅ Label updated to: {new_rating.replace('_', ' ').title()}")
 
 if __name__ == "__main__":
     main()
