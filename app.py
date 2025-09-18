@@ -180,7 +180,7 @@ def display_image_and_ehr(image_data, ehr_text):
         
         if os.path.exists(image_path):
             image = Image.open(image_path)
-            st.image(image, use_container_width=True)
+            st.image(image, width='stretch')
         else:
             st.error(f"Image not found: {image_data['filename']}")
     
@@ -257,6 +257,19 @@ def main():
     st.sidebar.progress(progress)
     st.sidebar.write(f"{len(doctor_labels_current)} / {len(image_data_list)} images labeled ({progress:.1%})")
     
+    # Check if we should show previous labels
+    if st.session_state.get('show_previous_labels', False):
+        st.markdown("### 📋 Previous Labels")
+        # Reload labels to ensure we have the latest data
+        current_doctor_labels = load_doctor_labels(doctor_id, modality)
+        show_previous_labels(current_doctor_labels, doctor_id, modality)
+        
+        # Add button to go back to labeling
+        if st.button("← Back to Labeling", width='stretch'):
+            st.session_state.show_previous_labels = False
+            st.rerun()
+        return
+    
     # Find next unlabeled image
     def make_label_key(difficulty, filename):
         return f"{difficulty}/{filename}"
@@ -281,7 +294,9 @@ def main():
         
         # Always show previous labels management when all images are labeled
         st.markdown("---")
-        show_previous_labels(doctor_labels, doctor_id, modality)
+        # Reload labels to ensure we have the latest data
+        current_doctor_labels = load_doctor_labels(doctor_id, modality)
+        show_previous_labels(current_doctor_labels, doctor_id, modality)
         return
     
     # Display current image
@@ -297,22 +312,31 @@ def main():
     st.markdown("### 🎯 Difficulty Rating")
     st.markdown("**How difficult is it to detect that this image is a deepfake?**")
     
+    # Add reasoning text input with unique key per image
+    reasoning_key = f"reasoning_{current_image['filename']}_{current_image['difficulty']}"
+    reasoning = st.text_area(
+        "💭 Reasoning (Optional):",
+        placeholder="Explain your decision... What makes this image easy/medium/hard to detect as a deepfake?",
+        height=100,
+        key=reasoning_key
+    )
+    
     col1, col2, col3 = st.columns(3)
     
     
     with col1:
-        if st.button("🟢 Easy", use_container_width=True): 
-            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "easy", current_image, ehr_text)
+        if st.button("🟢 Easy", width='stretch'): 
+            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "easy", current_image, ehr_text, reasoning)
             st.rerun()
     
     with col2:
-        if st.button("🟡 Medium", use_container_width=True):
-            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "medium", current_image, ehr_text)
+        if st.button("🟡 Medium", width='stretch'):
+            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "medium", current_image, ehr_text, reasoning)
             st.rerun()
     
     with col3:
-        if st.button("🔴 Hard", use_container_width=True):
-            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "hard", current_image, ehr_text)
+        if st.button("🔴 Hard", width='stretch'):
+            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "hard", current_image, ehr_text, reasoning)
             st.rerun()
     
     # Additional options
@@ -321,16 +345,20 @@ def main():
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("⏭️ Skip This Image", use_container_width=True):
-            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "skipped", current_image, ehr_text)
+        if st.button("⏭️ Skip This Image", width='stretch'):
+            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "skipped", current_image, ehr_text, reasoning)
             st.rerun()
     
     with col2:
-        if st.button("🔄 View Previous Labels", use_container_width=True):
-            show_previous_labels(doctor_labels, doctor_id, modality)
+        if st.button("🔄 View Previous Labels", width='stretch'):
+            # Set session state to show previous labels
+            st.session_state.show_previous_labels = True
+            st.rerun()
 
-def save_label(doctor_id, modality, label_key, difficulty, image_data, ehr_text):
+def save_label(doctor_id, modality, label_key, difficulty, image_data, ehr_text, reasoning=""):
     """Save a label for the current image"""
+    
+    print(f"Saving label: {label_key}, {difficulty}, {image_data}, {ehr_text}, {reasoning}")
     doctor_labels = load_doctor_labels(doctor_id, modality)
     
     label_data = {
@@ -339,7 +367,8 @@ def save_label(doctor_id, modality, label_key, difficulty, image_data, ehr_text)
         'modality': image_data.get('modality'),
         'difficulty': image_data.get('difficulty'),
         'filename': image_data.get('filename'),
-        'ehr_text': ehr_text
+        'ehr_text': ehr_text,
+        'reasoning': reasoning.strip() if reasoning else ""
     }
     
     doctor_labels[label_key] = label_data
@@ -366,13 +395,16 @@ def show_previous_labels(doctor_labels, doctor_id, modality):
     st.markdown("### 📋 Previous Labels")
     st.markdown(f"**Modality:** {modality} | **Total Labels:** {len(doctor_labels)}")
     
-    for label_key, label_data in list(doctor_labels.items())[-20:]:  # Show last 20
-        with st.expander(f"{label_key} - {label_data['doctor_difficulty'].replace('_', ' ').title()}"):
+    for i, (label_key, label_data) in enumerate(list(doctor_labels.items())[-20:], 1):  # Show last 20
+        with st.expander(f"Image {i} - {label_data['doctor_difficulty'].replace('_', ' ').title()}"):
             # Show label information
             st.write(f"**Current Rating:** {label_data['doctor_difficulty'].replace('_', ' ').title()}")
             st.write(f"**Timestamp:** {label_data['timestamp']}")
-            st.write(f"**Difficulty:** {label_data.get('difficulty', 'N/A')}")
-            st.write(f"**File:** {label_data.get('filename', 'N/A')}")
+            
+            # Show reasoning if available
+            reasoning = label_data.get('reasoning', '')
+            if reasoning:
+                st.write(f"**Reasoning:** {reasoning}")
             
             # Reconstruct image data for display
             difficulty, filename = label_key.split('/', 1)
@@ -392,36 +424,36 @@ def show_previous_labels(doctor_labels, doctor_id, modality):
             st.markdown("### 🎯 Change Rating")
             st.markdown("**How difficult is it to detect that this image is a deepfake?**")
             
+            # Add reasoning text input for editing
+            edit_reasoning = st.text_area(
+                "💭 Update Reasoning (Optional):",
+                value=reasoning,
+                placeholder="Explain your decision... What makes this image easy/medium/hard to detect as a deepfake?",
+                height=80,
+                key=f"edit_reasoning_{label_key}"
+            )
+            
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
                 if st.button("🟢 Easy", key=f"edit_easy_{label_key}"):
-                    update_label_rating(doctor_id, modality, label_key, "easy")
+                    save_label(doctor_id, modality, label_key, "easy", image_data, ehr_text, edit_reasoning)
                     st.rerun()
             
             with col2:
                 if st.button("🟡 Medium", key=f"edit_medium_{label_key}"):
-                    update_label_rating(doctor_id, modality, label_key, "medium")
+                    save_label(doctor_id, modality, label_key, "medium", image_data, ehr_text, edit_reasoning)
                     st.rerun()
             
             with col3:
                 if st.button("🔴 Hard", key=f"edit_hard_{label_key}"):
-                    update_label_rating(doctor_id, modality, label_key, "hard")
+                    save_label(doctor_id, modality, label_key, "hard", image_data, ehr_text, edit_reasoning)
                     st.rerun()
             
             with col4:
                 if st.button("⏭️ Skip", key=f"edit_skip_{label_key}"):
-                    update_label_rating(doctor_id, modality, label_key, "skipped")
+                    save_label(doctor_id, modality, label_key, "skipped", image_data, ehr_text, edit_reasoning)
                     st.rerun()
-
-def update_label_rating(doctor_id, modality, label_key, new_rating):
-    """Update the rating for an existing label"""
-    doctor_labels = load_doctor_labels(doctor_id, modality)
-    if label_key in doctor_labels:
-        doctor_labels[label_key]['doctor_difficulty'] = new_rating
-        doctor_labels[label_key]['timestamp'] = datetime.datetime.now().isoformat()
-        save_doctor_labels(doctor_id, modality, doctor_labels)
-        st.success(f"✅ Label updated to: {new_rating.replace('_', ' ').title()}")
 
 if __name__ == "__main__":
     main()
