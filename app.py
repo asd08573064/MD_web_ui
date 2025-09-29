@@ -170,8 +170,8 @@ def authenticate_doctor():
     
     return None, None
 
-def display_image_and_ehr(image_data, ehr_text):
-    """Display the image and EHR text"""
+def display_image_and_ehr(image_data, ehr_text, editable=False, key=None):
+    """Display the image and EHR text. If editable=True, show a text area and return the edited text."""
     col1, col2 = st.columns([2, 1])
     
     with col1:
@@ -186,7 +186,18 @@ def display_image_and_ehr(image_data, ehr_text):
     
     with col2:
         st.markdown("### 📋 EHR Information")
-        st.markdown(f'<div class="ehr-text">{ehr_text}</div>', unsafe_allow_html=True)
+        if editable:
+            st.caption("This report is editable by the doctor")
+            edited = st.text_area(
+                "EHR (Editable)",
+                value=ehr_text or "",
+                height=200,
+                key=key if key else None
+            )
+            return edited
+        else:
+            st.markdown(f'<div class="ehr-text">{ehr_text}</div>', unsafe_allow_html=True)
+            return ehr_text
 
 def main():
     st.markdown('<h1 class="main-header">🏥 Medical Deepfake Difficulty Labeling</h1>', unsafe_allow_html=True)
@@ -302,15 +313,24 @@ def main():
     # Display current image
     current_image = unlabeled_images[0]
     ehr_text = load_ehr_text(current_image['filename'], modality, current_image['difficulty'])
+    # Prefer edited EHR if already saved for this image
+    current_label_key = make_label_key(current_image['difficulty'], current_image['filename'])
+    existing_label = doctor_labels.get(current_label_key)
+    if existing_label:
+        saved_ehr_text = existing_label.get('ehr_text')
+        if saved_ehr_text:
+            ehr_text = saved_ehr_text
     
     st.markdown("### Current Image")
     
-    # Display image and EHR
-    display_image_and_ehr(current_image, ehr_text)
+    # Display image and EHR (EHR editable)
+    ehr_key = f"ehr_{current_image['filename']}_{current_image['difficulty']}"
+    ehr_text = display_image_and_ehr(current_image, ehr_text, editable=True, key=ehr_key)
     
-    # Difficulty rating interface
-    st.markdown("### 🎯 Difficulty Rating")
-    st.markdown("**How difficult is it to detect that this image is a deepfake?**")
+    # Confidence rating interface
+    st.markdown("### 🎯 Deepfake Confidence Rating")
+    st.markdown("**How confident are you that this image is AI-generated (deepfake)?**")
+    st.caption("Guidance: 1) Very Low: almost certainly real; 2) Low: likely real; 3) Medium: unsure; 4) High: likely deepfake; 5) Very High: almost certainly deepfake. Use Drop only if this image is too synthetic/invalid to include in the study.")
     
     # Add reasoning text input with unique key per image
     reasoning_key = f"reasoning_{current_image['filename']}_{current_image['difficulty']}"
@@ -321,28 +341,38 @@ def main():
         key=reasoning_key
     )
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     
     with col1:
-        if st.button("🟢 Easy", width='stretch'): 
-            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "easy", current_image, ehr_text, reasoning)
+        if st.button("1️⃣ Very Low", width='stretch'): 
+            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "very_low", current_image, ehr_text, reasoning)
             st.rerun()
     
     with col2:
-        if st.button("🟡 Medium", width='stretch'):
-            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "medium", current_image, ehr_text, reasoning)
+        if st.button("2️⃣ Low", width='stretch'):
+            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "low", current_image, ehr_text, reasoning)
             st.rerun()
     
     with col3:
-        if st.button("🔴 Hard", width='stretch'):
-            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "hard", current_image, ehr_text, reasoning)
+        if st.button("3️⃣ Medium", width='stretch'):
+            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "medium", current_image, ehr_text, reasoning)
+            st.rerun()
+
+    with col4:
+        if st.button("4️⃣ High", width='stretch'):
+            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "high", current_image, ehr_text, reasoning)
+            st.rerun()
+
+    with col5:
+        if st.button("5️⃣ Very High", width='stretch'):
+            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "very_high", current_image, ehr_text, reasoning)
             st.rerun()
     
     # Additional options
     st.markdown("### 📝 Additional Options")
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         if st.button("⏭️ Skip This Image", width='stretch'):
@@ -350,6 +380,11 @@ def main():
             st.rerun()
     
     with col2:
+        if st.button("🗑️ Drop (Too fake to include)", width='stretch'):
+            save_label(doctor_id, modality, make_label_key(current_image['difficulty'], current_image['filename']), "dropped", current_image, ehr_text, reasoning)
+            st.rerun()
+
+    with col3:
         if st.button("🔄 View Previous Labels", width='stretch'):
             # Set session state to show previous labels
             st.session_state.show_previous_labels = True
@@ -362,7 +397,7 @@ def save_label(doctor_id, modality, label_key, difficulty, image_data, ehr_text,
     doctor_labels = load_doctor_labels(doctor_id, modality)
     
     label_data = {
-        'doctor_difficulty': difficulty,
+        'doctor_confidence': difficulty,
         'timestamp': datetime.datetime.now().isoformat(),
         'modality': image_data.get('modality'),
         'difficulty': image_data.get('difficulty'),
@@ -374,7 +409,7 @@ def save_label(doctor_id, modality, label_key, difficulty, image_data, ehr_text,
     doctor_labels[label_key] = label_data
     save_doctor_labels(doctor_id, modality, doctor_labels)
     
-    st.success(f"✅ Label saved: {difficulty.replace('_', ' ').title()}")
+    st.success(f"✅ Saved: Confidence = {difficulty.replace('_', ' ').title()}")
 
 def delete_label(doctor_id, modality, label_key):
     """Delete a label for a specific image"""
@@ -398,7 +433,8 @@ def show_previous_labels(doctor_labels, doctor_id, modality):
     for i, (label_key, label_data) in enumerate(list(doctor_labels.items())[-20:], 1):  # Show last 20
         with st.expander(f"Image {i} - {label_data['doctor_difficulty'].replace('_', ' ').title()}"):
             # Show label information
-            st.write(f"**Current Rating:** {label_data['doctor_difficulty'].replace('_', ' ').title()}")
+            conf = label_data.get('doctor_confidence') or label_data.get('doctor_difficulty') or 'unknown'
+            st.write(f"**Current Confidence:** {str(conf).replace('_', ' ').title()}")
             st.write(f"**Timestamp:** {label_data['timestamp']}")
             
             # Show reasoning if available
@@ -414,15 +450,21 @@ def show_previous_labels(doctor_labels, doctor_id, modality):
                 'difficulty': difficulty
             }
             
-            # Load the report text
+            # Load the report text and prefer edited EHR from JSON if present
             ehr_text = load_ehr_text(filename, modality, difficulty)
+            saved = doctor_labels.get(label_key)
+            if saved and saved.get('ehr_text'):
+                ehr_text = saved.get('ehr_text')
             
             # Display image and report
-            display_image_and_ehr(image_data, ehr_text)
+            # Display image and EHR (EHR editable in edit view)
+            ehr_edit_key = f"ehr_edit_{label_key}"
+            ehr_text = display_image_and_ehr(image_data, ehr_text, editable=True, key=ehr_edit_key)
             
             # Embedded editing UI
-            st.markdown("### 🎯 Change Rating")
-            st.markdown("**How difficult is it to detect that this image is a deepfake?**")
+            st.markdown("### 🎯 Change Confidence")
+            st.markdown("**How confident are you that this image is AI-generated (deepfake)?**")
+            st.caption("Guidance: 1) Very Low: almost certainly real; 2) Low: likely real; 3) Medium: unsure; 4) High: likely deepfake; 5) Very High: almost certainly deepfake. Use Drop only if this image is too synthetic/invalid to include in the study.")
             
             # Add reasoning text input for editing
             edit_reasoning = st.text_area(
@@ -433,26 +475,36 @@ def show_previous_labels(doctor_labels, doctor_id, modality):
                 key=f"edit_reasoning_{label_key}"
             )
             
-            col1, col2, col3, col4 = st.columns(4)
+            col1, col2, col3, col4, col5, col6 = st.columns(6)
             
             with col1:
-                if st.button("🟢 Easy", key=f"edit_easy_{label_key}"):
-                    save_label(doctor_id, modality, label_key, "easy", image_data, ehr_text, edit_reasoning)
+                if st.button("1️⃣ Very Low", key=f"edit_vlow_{label_key}"):
+                    save_label(doctor_id, modality, label_key, "very_low", image_data, ehr_text, edit_reasoning)
                     st.rerun()
             
             with col2:
-                if st.button("🟡 Medium", key=f"edit_medium_{label_key}"):
-                    save_label(doctor_id, modality, label_key, "medium", image_data, ehr_text, edit_reasoning)
+                if st.button("2️⃣ Low", key=f"edit_low_{label_key}"):
+                    save_label(doctor_id, modality, label_key, "low", image_data, ehr_text, edit_reasoning)
                     st.rerun()
             
             with col3:
-                if st.button("🔴 Hard", key=f"edit_hard_{label_key}"):
-                    save_label(doctor_id, modality, label_key, "hard", image_data, ehr_text, edit_reasoning)
+                if st.button("3️⃣ Medium", key=f"edit_med_{label_key}"):
+                    save_label(doctor_id, modality, label_key, "medium", image_data, ehr_text, edit_reasoning)
                     st.rerun()
-            
+
             with col4:
-                if st.button("⏭️ Skip", key=f"edit_skip_{label_key}"):
-                    save_label(doctor_id, modality, label_key, "skipped", image_data, ehr_text, edit_reasoning)
+                if st.button("4️⃣ High", key=f"edit_high_{label_key}"):
+                    save_label(doctor_id, modality, label_key, "high", image_data, ehr_text, edit_reasoning)
+                    st.rerun()
+
+            with col5:
+                if st.button("5️⃣ Very High", key=f"edit_vhigh_{label_key}"):
+                    save_label(doctor_id, modality, label_key, "very_high", image_data, ehr_text, edit_reasoning)
+                    st.rerun()
+
+            with col6:
+                if st.button("🗑️ Drop", key=f"edit_drop_{label_key}"):
+                    save_label(doctor_id, modality, label_key, "dropped", image_data, ehr_text, edit_reasoning)
                     st.rerun()
 
 if __name__ == "__main__":
