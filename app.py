@@ -293,15 +293,15 @@ def main():
         
         # Show summary statistics
         if doctor_labels:
-            difficulty_counts = {}
+            confidence_counts = {}
             for filename, label_data in doctor_labels.items():
-                difficulty = label_data.get('doctor_difficulty', 'Unknown')
-                difficulty_counts[difficulty] = difficulty_counts.get(difficulty, 0) + 1
+                confidence = label_data.get('doctor_confidence') or label_data.get('doctor_difficulty') or 'Unknown'
+                confidence_counts[confidence] = confidence_counts.get(confidence, 0) + 1
             
             col1, col2, col3 = st.columns(3)
-            for i, (difficulty, count) in enumerate(difficulty_counts.items()):
+            for i, (confidence, count) in enumerate(confidence_counts.items()):
                 with [col1, col2, col3][i % 3]:
-                    st.metric(f"{difficulty.title()} Difficulty", count)
+                    st.metric(f"{str(confidence).replace('_', ' ').title()} Confidence", count)
         
         # Always show previous labels management when all images are labeled
         st.markdown("---")
@@ -431,7 +431,8 @@ def show_previous_labels(doctor_labels, doctor_id, modality):
     st.markdown(f"**Modality:** {modality} | **Total Labels:** {len(doctor_labels)}")
     
     for i, (label_key, label_data) in enumerate(list(doctor_labels.items())[-20:], 1):  # Show last 20
-        with st.expander(f"Image {i} - {label_data['doctor_difficulty'].replace('_', ' ').title()}"):
+        title_conf = (label_data.get('doctor_confidence') or label_data.get('doctor_difficulty') or 'unknown')
+        with st.expander(f"Image {i} - {str(title_conf).replace('_', ' ').title()}"):
             # Show label information
             conf = label_data.get('doctor_confidence') or label_data.get('doctor_difficulty') or 'unknown'
             st.write(f"**Current Confidence:** {str(conf).replace('_', ' ').title()}")
@@ -474,6 +475,12 @@ def show_previous_labels(doctor_labels, doctor_id, modality):
                 height=80,
                 key=f"edit_reasoning_{label_key}"
             )
+            
+            # Save EHR without changing the current confidence
+            current_conf = label_data.get('doctor_confidence') or label_data.get('doctor_difficulty') or 'medium'
+            if st.button("💾 Save EHR Only", key=f"save_ehr_only_{label_key}"):
+                save_label(doctor_id, modality, label_key, current_conf, image_data, ehr_text, edit_reasoning)
+                st.rerun()
             
             col1, col2, col3, col4, col5, col6 = st.columns(6)
             
