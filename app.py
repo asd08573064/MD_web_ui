@@ -7,6 +7,7 @@ import hashlib
 import datetime
 from pathlib import Path
 import glob
+import random
 
 # Page configuration
 st.set_page_config(
@@ -98,6 +99,11 @@ def load_image_data(modality):
                 'modality': modality,
                 'difficulty': difficulty
             })
+    
+    # Deterministic randomization: use modality as seed for consistent ordering
+    # This ensures the same order every time the app loads, but still randomized
+    random.seed(f"medical_deepfake_{modality}")
+    random.shuffle(image_data)
     return image_data
 
 def load_ehr_text(filename, modality, difficulty):
@@ -187,7 +193,16 @@ def display_image_and_ehr(image_data, ehr_text, editable=False, key=None):
     with col2:
         st.markdown("### 📋 EHR Information")
         if editable:
-            st.caption("This report is editable by the doctor")
+            st.markdown("""
+            <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 10px 0;">
+                <p style="font-size: 16px; font-weight: bold; color: #856404; margin: 0;">
+                    ✏️ This report is editable by the doctor
+                </p>
+                <p style="font-size: 14px; color: #856404; margin: 5px 0 0 0;">
+                    You may edit it so that it aligns with a general EHR format typically applied in clinical practice.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
             edited = st.text_area(
                 "EHR (Editable)",
                 value=ehr_text or "",
@@ -310,8 +325,13 @@ def main():
         show_previous_labels(current_doctor_labels, doctor_id, modality)
         return
     
-    # Display current image
-    current_image = unlabeled_images[0]
+    # Display current image - pick a deterministic random unlabeled image
+    # Use a seed based on the number of unlabeled images for consistent selection
+    if unlabeled_images:
+        random.seed(f"selection_{len(unlabeled_images)}_{modality}")
+        current_image = random.choice(unlabeled_images)
+    else:
+        current_image = None
     ehr_text = load_ehr_text(current_image['filename'], modality, current_image['difficulty'])
     # Prefer edited EHR if already saved for this image
     current_label_key = make_label_key(current_image['difficulty'], current_image['filename'])
@@ -330,7 +350,23 @@ def main():
     # Confidence rating interface
     st.markdown("### 🎯 Deepfake Confidence Rating")
     st.markdown("**How confident are you that this image is AI-generated (deepfake)?**")
-    st.caption("Guidance: 1) Very Low: almost certainly real; 2) Low: likely real; 3) Medium: unsure; 4) High: likely deepfake; 5) Very High: almost certainly deepfake. Use Drop only if this image is too synthetic/invalid to include in the study.")
+    
+    # Well-formatted guidance with larger font
+    st.markdown("""
+    <div style="background-color: #f0f8ff; padding: 20px; border-radius: 10px; border-left: 5px solid #1f77b4; margin: 15px 0;">
+        <h4 style="color: #1f77b4; margin-top: 0; font-size: 18px;">📋 Rating Guidance</h4>
+        <div style="font-size: 16px; line-height: 1.6; color: #333;">
+            <p><strong>1️⃣ Very Low:</strong> almost certainly real</p>
+            <p><strong>2️⃣ Low:</strong> likely real</p>
+            <p><strong>3️⃣ Medium:</strong> unsure</p>
+            <p><strong>4️⃣ High:</strong> likely deepfake</p>
+            <p><strong>5️⃣ Very High:</strong> almost certainly deepfake</p>
+            <p style="margin-top: 15px; font-style: italic; color: #666;">
+                <strong>Note:</strong> Use "Drop" only if this image is too synthetic/invalid to include in the study.
+            </p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Add reasoning text input with unique key per image
     reasoning_key = f"reasoning_{current_image['filename']}_{current_image['difficulty']}"
@@ -465,7 +501,23 @@ def show_previous_labels(doctor_labels, doctor_id, modality):
             # Embedded editing UI
             st.markdown("### 🎯 Change Confidence")
             st.markdown("**How confident are you that this image is AI-generated (deepfake)?**")
-            st.caption("Guidance: 1) Very Low: almost certainly real; 2) Low: likely real; 3) Medium: unsure; 4) High: likely deepfake; 5) Very High: almost certainly deepfake. Use Drop only if this image is too synthetic/invalid to include in the study.")
+            
+            # Well-formatted guidance with larger font
+            st.markdown("""
+            <div style="background-color: #f0f8ff; padding: 20px; border-radius: 10px; border-left: 5px solid #1f77b4; margin: 15px 0;">
+                <h4 style="color: #1f77b4; margin-top: 0; font-size: 18px;">📋 Rating Guidance</h4>
+                <div style="font-size: 16px; line-height: 1.6; color: #333;">
+                    <p><strong>1️⃣ Very Low:</strong> almost certainly real</p>
+                    <p><strong>2️⃣ Low:</strong> likely real</p>
+                    <p><strong>3️⃣ Medium:</strong> unsure</p>
+                    <p><strong>4️⃣ High:</strong> likely deepfake</p>
+                    <p><strong>5️⃣ Very High:</strong> almost certainly deepfake</p>
+                    <p style="margin-top: 15px; font-style: italic; color: #666;">
+                        <strong>Note:</strong> Use "Drop" only if this image is too synthetic/invalid to include in the study.
+                    </p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
             
             # Add reasoning text input for editing
             edit_reasoning = st.text_area(
