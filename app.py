@@ -201,12 +201,15 @@ def display_image_and_ehr(image_data, ehr_text, editable=False, key=None):
                 <p style="font-size: 14px; color: #856404; margin: 5px 0 0 0;">
                     You may edit it so that it aligns with a general EHR format typically applied in clinical practice.
                 </p>
+                <p style="font-size: 16px; font-weight: bold; color: #856404; margin: 0;">
+                    💾 Reminder: Your edited EHR text will be automatically saved when you press any confidence rating button below.
+                </p>
             </div>
             """, unsafe_allow_html=True)
             edited = st.text_area(
                 "EHR (Editable)",
                 value=ehr_text or "",
-                height=200,
+                height=300,
                 key=key if key else None
             )
             return edited
