@@ -1,3 +1,5 @@
+
+
 # Medical Deepfake Difficulty Labeling Application
 
 A Streamlit web application for medical professionals to label the difficulty of detecting deepfake medical images.
@@ -48,23 +50,25 @@ pip install -r requirements.txt
 2. Ensure your data structure is as follows:
 ```
 project/
-├── out_scm_tts/
-│   ├── easy/
-│   │   ├── *.png files
-│   │   └── results_easy.csv
-│   ├── medium/
-│   │   ├── *.png files
-│   │   └── results_medium.csv
-│   └── hard/
-│       ├── *.png files
-│       └── results_hard.csv
-├── out_scm_tts_ehr/
-│   ├── easy/
-│   │   └── *.ehr.txt files
-│   ├── medium/
-│   │   └── *.ehr.txt files
-│   └── hard/
-│       └── *.ehr.txt files
+├── data/
+│   ├── CXR/
+│   │   ├── images/
+│   │   │   ├── easy/
+│   │   │   │   └── *.png files
+│   │   │   ├── medium/
+│   │   │   │   └── *.png files
+│   │   │   └── hard/
+│   │   │       └── *.png files
+│   │   └── reports/
+│   │       ├── easy/
+│   │       │   └── *.txt files
+│   │       ├── medium/
+│   │       │   └── *.txt files
+│   │       └── hard/
+│   │           └── *.txt files
+│   ├── MRI/
+│   │   └── ... (same structure as CXR)
+│   └── ... (add CT, Pathology as needed)
 └── app.py
 ```
 
